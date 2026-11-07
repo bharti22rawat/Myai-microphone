@@ -1,0 +1,263 @@
+
+
+<!DOCTYPE html>
+
+<html lang="hi">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>MyAI Voice</title>
+
+<style>
+
+body {
+
+  margin: 0;
+
+  padding: 25px 16px;
+
+  background: #101827;
+
+  color: white;
+
+  font-family: Arial, sans-serif;
+
+  text-align: center;
+
+}
+
+h1 { color: #65d6c5; }
+
+.card {
+
+  max-width: 450px;
+
+  margin: 35px auto;
+
+  padding: 25px 18px;
+
+  background: #26364d;
+
+  border-radius: 18px;
+
+}
+
+button {
+
+  padding: 14px 20px;
+
+  margin: 8px;
+
+  border: 0;
+
+  border-radius: 12px;
+
+  font-size: 17px;
+
+  font-weight: bold;
+
+}
+
+#recordBtn { background: #65d6c5; }
+
+#listenBtn { background: #b4e6dc; }
+
+#stopBtn { background: #e5a1a1; }
+
+#status { color: #c5d4e5; margin: 18px; }
+
+#answer {
+
+  margin-top: 20px;
+
+  padding: 15px;
+
+  background: #182438;
+
+  border-radius: 12px;
+
+  line-height: 1.6;
+
+  white-space: pre-wrap;
+
+}
+
+</style>
+
+</head>
+
+<body>
+
+<h1>MyAI 🎤</h1>
+
+<div class="card">
+
+  <h3>Voice Assistant</h3>
+
+  <button id="recordBtn" onclick="recordAudio()">🎤 Speak</button>
+
+  <button id="listenBtn" onclick="listenAnswer()">🔊 Listen</button>
+
+  <button id="stopBtn" onclick="stopAll()">⏹ Stop</button>
+
+  <p id="status">Speak दबाकर बोलना शुरू करो।</p>
+
+  <div id="answer">तुम्हारा जवाब यहाँ दिखाई देगा।</div>
+
+</div>
+
+<iframe name="uploadFrame" style="display:none"></iframe>
+
+<form id="audioForm" method="POST" target="uploadFrame"
+
+ action="WEB_APP_URL">
+
+ <input type="hidden" name="audioBase64" id="audioBase64">
+
+ <input type="hidden" name="mimeType" id="mimeType">
+
+</form>
+
+<script>
+
+let recorder;
+
+let chunks = [];
+
+let answerText = "";
+
+async function recordAudio() {
+
+  try {
+
+    const stream = await navigator.mediaDevices.getUserMedia({
+
+      audio: true
+
+    });
+
+    let type = MediaRecorder.isTypeSupported("audio/mp4")
+
+      ? "audio/mp4" : "audio/webm";
+
+    recorder = new MediaRecorder(stream, {mimeType: type});
+
+    chunks = [];
+
+    recorder.ondataavailable = e => {
+
+      if (e.data.size) chunks.push(e.data);
+
+    };
+
+    recorder.onstop = async () => {
+
+      document.getElementById("status").innerText =
+
+        "आवाज़ भेजी जा रही है...";
+
+      const blob = new Blob(chunks, {type: type});
+
+      const reader = new FileReader();
+
+      reader.onloadend = () => {
+
+        document.getElementById("audioBase64").value =
+
+          reader.result.split(",")[1];
+
+        document.getElementById("mimeType").value = type;
+
+        document.getElementById("audioForm").submit();
+
+        document.getElementById("status").innerText =
+
+          "जवाब का इंतज़ार है...";
+
+      };
+
+      reader.readAsDataURL(blob);
+
+      stream.getTracks().forEach(track => track.stop());
+
+    };
+
+    recorder.start();
+
+    document.getElementById("status").innerText =
+
+      "सुन रही हूँ... बोलकर Stop दबाओ।";
+
+    document.getElementById("recordBtn").innerText = "Recording...";
+
+  } catch (err) {
+
+    document.getElementById("status").innerText =
+
+      "Microphone Error: " + err.message;
+
+  }
+
+}
+
+function stopAll() {
+
+  if (recorder && recorder.state === "recording") {
+
+    recorder.stop();
+
+  }
+
+  window.speechSynthesis.cancel();
+
+  document.getElementById("recordBtn").innerText = "🎤 Speak";
+
+}
+
+function listenAnswer() {
+
+  if (!answerText) {
+
+    document.getElementById("status").innerText =
+
+      "पहले जवाब आने दो।";
+
+    return;
+
+  }
+
+  window.speechSynthesis.cancel();
+
+  const speech = new SpeechSynthesisUtterance(answerText);
+
+  speech.lang = "hi-IN";
+
+  window.speechSynthesis.speak(speech);
+
+}
+
+window.addEventListener("message", event => {
+
+  if (event.data && event.data.type === "MYAI_REPLY") {
+
+    answerText = event.data.answer;
+
+    document.getElementById("answer").innerText = answerText;
+
+    document.getElementById("status").innerText = "जवाब मिल गया! 😊";
+
+    document.getElementById("recordBtn").innerText = "🎤 Speak";
+
+  }
+
+});
+
+</script>
+
+</body>
+
+</html>
